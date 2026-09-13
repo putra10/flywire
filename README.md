@@ -1,6 +1,6 @@
 # Inner Compass
 
-A static, single-page FlyWire heading-circuit experiment. Plain HTML, CSS, JavaScript modules, Canvas 2D and WebGL. No framework, backend, runtime package dependencies, or API keys. The measured wiring is included in `public/data`; the optional anatomy view fetches published v783 skeleton endpoints only when opened.
+A static, single-page FlyWire heading-circuit experiment. Plain HTML, CSS, JavaScript modules, Canvas 2D and WebGL. No framework, backend, runtime package dependencies, or API keys. The measured wiring and simplified v783 skeletons are included in `public/data`; the anatomy asset (4.8 MB) is fetched only when the **Real anatomy** view is opened. Nothing is fetched from third-party servers at runtime.
 
 ## Preview
 
@@ -14,7 +14,7 @@ Open http://127.0.0.1:8000. Use an HTTP server; opening `index.html` through `fi
 
 ## Vercel (free Hobby tier)
 
-Import this folder as a Git repository into Vercel. Choose **Other** for the framework, leave the Build Command empty, and use **public** as the Output Directory. `vercel.json` sets the static output directory. There is no build step or server function; Python is used only offline to regenerate data. Commit both exported data files. The raw `.cache` directory is ignored and must not be deployed.
+Import this folder as a Git repository into Vercel. Choose **Other** for the framework, leave the Build Command empty, and use **public** as the Output Directory. `vercel.json` sets the static output directory. There is no build step or server function; Python is used only offline to regenerate data. Commit all four exported data files. The raw `.cache` directory is ignored and must not be deployed.
 
 Alternatively, run `rtk npx vercel` from the root and follow Vercel's account/project prompts. No deployment has been made by this project setup. [Vercel static build settings](https://vercel.com/docs/builds/configure-a-build#skip-build-step).
 
@@ -31,7 +31,10 @@ The exporter downloads four gzipped CSV tables from the [public FlyWire v783 sto
 
 ```powershell
 rtk python scripts/export_connectome.py --offline
+rtk python scripts/export_anatomy.py
 ```
+
+`export_anatomy.py` downloads the 147 matching v783 skeletons from the published precomputed endpoint (cached in `.cache/skeletons-783`), simplifies each unbranched path with Ramer–Douglas–Peucker at 800 nm while keeping every branch point and endpoint, and writes `public/data/anatomy.bin` plus `anatomy.json`. Run it after `export_connectome.py` whenever the neuron selection changes.
 
 Selection: exact primary types EPG, PEG, PEN_a/PEN1, PEN_b/PEN2 and Delta7, with at least one source-table synapse in EB or PB. All connections between the retained neurons are aggregated across neuropils, including NO. EPGt is excluded. The published source table is already thresholded; omitted weak connections cannot be recovered. No further threshold is imposed. The matrix contains **147 neurons, 2,529 directed nonzero pairs, and 35,781 synapses**. It is a selected subgraph, not the entire central complex.
 
@@ -40,6 +43,7 @@ Four of the 151 candidate cells have no resolved transmitter prediction (two Del
 ## File contract
 
 * `public/data/connections.bin`: **86,436 bytes**, dense 147×147 little-endian float32, source-major row order. Element `[source * N + target]` is the **signed integer synapse count**. Zero means absent in this export. Self-connections present in the source are retained.
+* `public/data/anatomy.bin`: little-endian float32 line segments (`x y z x y z`), grouped per neuron in `neurons.json` order; `anatomy.json` records each cell's segment range, source vertex/edge counts, source SHA-256, scale, and axis mapping. The browser verifies the binary SHA-256 and segment totals before drawing.
 * `public/data/neurons.json`: compact manifest plus neurons in exact matrix order. Root IDs are strings to avoid JavaScript's 53-bit integer limit. Includes original/canonical cell type, side, predicted transmitter and score, modeled sign, EB/PB membership and inferred layout angle. Also includes input URLs and SHA-256 checksums, output checksum, selection policy, excluded IDs, and citations.
 
 The browser checks dimensions, signs, finite integer counts, connection/synapse totals and the binary SHA-256 (when Web Crypto is available). Failed loading produces an explicit error; there is no synthetic fallback.
@@ -61,8 +65,9 @@ This is a connectome-constrained educational model, not proof that connectivity 
 ## Verification
 
 ```powershell
-rtk node --test tests/model.test.mjs
+rtk node --test tests/model.test.mjs tests/app.test.mjs
 rtk python tests/verify_sources.py
+rtk npx prettier --check public tests
 ```
 
 The Node tests cover binary corruption, exact shuffle invariants, stable patches from six initial headings, loss of coherence across 20 independent shuffles, full turns in both directions, bounded rates and integration input checks. The independent Python audit checks every matrix entry against source CSV counts and verifies all source hashes (requires the downloaded cache).

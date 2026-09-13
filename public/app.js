@@ -1,23 +1,75 @@
 import { Circuit, decodeMatrix, STEP, TAU } from './model.mjs';
-import { Scene3D, anatomyFromSkeletonBuffers } from './scene3d.mjs';
+import { Scene3D, decodeAnatomy } from './scene3d.mjs';
 
-const $ = id => document.getElementById(id);
-const canvas = $('circuit'), ctx = canvas.getContext('2d');
-const ui = Object.fromEntries(['turn','velocity','stop','real','shuffled','pause','reset','reshuffle','loading','heading','heading-note','coherence','coherence-bar','run-status','mode-label','mode-description','view-caption','data-stats','fly','visualization','scene3d','view-ring','view-anatomy','view-flat','anatomy-filter','anatomy-status','orbit-tools','orbit-hint','neuron-inspector'].map(id => [id, $(id)]));
-let circuit, metadata, paused = false, last = 0, accumulator = 0, width = 0, height = 0, seed = 42;
-let positions = [], displayEdges = [], hudClock = 0, scene, view = 'ring', anatomyLoading = false;
+const $ = (id) => document.getElementById(id);
+const canvas = $('circuit'),
+  ctx = canvas.getContext('2d');
+const ui = Object.fromEntries(
+  [
+    'turn',
+    'velocity',
+    'stop',
+    'real',
+    'shuffled',
+    'pause',
+    'reset',
+    'reshuffle',
+    'loading',
+    'heading',
+    'heading-note',
+    'coherence',
+    'coherence-bar',
+    'run-status',
+    'mode-label',
+    'mode-description',
+    'view-caption',
+    'data-stats',
+    'fly',
+    'visualization',
+    'scene3d',
+    'view-ring',
+    'view-anatomy',
+    'view-flat',
+    'anatomy-filter',
+    'anatomy-status',
+    'orbit-tools',
+    'orbit-hint',
+    'neuron-inspector',
+  ].map((id) => [id, $(id)]),
+);
+let circuit,
+  metadata,
+  paused = false,
+  last = 0,
+  accumulator = 0,
+  width = 0,
+  height = 0,
+  seed = 42;
+let positions = [],
+  displayEdges = [],
+  hudClock = 0,
+  scene,
+  view = 'ring',
+  anatomyLoading = false;
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const sha256 = async (buffer) =>
+  Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', buffer)), (x) =>
+    x.toString(16).padStart(2, '0'),
+  ).join('');
 
 function resize() {
   const activeCanvas = view === 'flat' ? canvas : ui.scene3d;
-  const rect = activeCanvas.getBoundingClientRect(), ratio = Math.min(devicePixelRatio || 1, 2);
-  width = rect.width; height = rect.height;
+  const rect = activeCanvas.getBoundingClientRect(),
+    ratio = Math.min(devicePixelRatio || 1, 2);
+  width = rect.width;
+  height = rect.height;
   if (view === 'flat') {
-    canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio);
+    canvas.width = Math.round(width * ratio);
+    canvas.height = Math.round(height * ratio);
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
   }
   if (circuit) layout();
-  if (scene) scene.resize(width,height);
+  if (scene) scene.resize(width, height);
 }
 
 function layout() {
@@ -43,183 +95,314 @@ function draw() {
   if (scene && view !== 'flat') scene.draw(circuit.rates);
   if (view !== 'flat') return;
   ctx.clearRect(0, 0, width, height);
-  const cx = width / 2, cy = height * 0.49, radius = Number(canvas.dataset.radius);
+  const cx = width / 2,
+    cy = height * 0.49,
+    radius = Number(canvas.dataset.radius);
   const warm = circuit.mode === 'shuffled';
-  const color = warm ? [223,179,131] : [196,232,132];
-  const rgba = alpha => `rgba(${color.join(',')},${alpha})`;
+  const color = warm ? [223, 179, 131] : [196, 232, 132];
+  const rgba = (alpha) => `rgba(${color.join(',')},${alpha})`;
   const readout = circuit.readout();
   // Quiet instrument markings.
   for (const factor of [0.665, 0.825, 1, 1.14]) {
-    ctx.beginPath(); ctx.arc(cx, cy, radius * factor, 0, TAU);
-    ctx.strokeStyle = rgba(factor === 1.14 ? .06 : .10); ctx.lineWidth = 1; ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius * factor, 0, TAU);
+    ctx.strokeStyle = rgba(factor === 1.14 ? 0.06 : 0.1);
+    ctx.lineWidth = 1;
+    ctx.stroke();
   }
   for (let tick = 0; tick < 72; tick++) {
-    const a = tick / 72 * TAU, major = tick % 18 === 0;
-    const r1 = radius * 1.105, r2 = r1 + (major ? 8 : tick % 6 === 0 ? 5 : 2);
-    ctx.beginPath(); ctx.moveTo(cx + Math.sin(a) * r1, cy - Math.cos(a) * r1);
+    const a = (tick / 72) * TAU,
+      major = tick % 18 === 0;
+    const r1 = radius * 1.105,
+      r2 = r1 + (major ? 8 : tick % 6 === 0 ? 5 : 2);
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.sin(a) * r1, cy - Math.cos(a) * r1);
     ctx.lineTo(cx + Math.sin(a) * r2, cy - Math.cos(a) * r2);
-    ctx.strokeStyle = rgba(major ? .4 : .17); ctx.stroke();
+    ctx.strokeStyle = rgba(major ? 0.4 : 0.17);
+    ctx.stroke();
   }
-  ctx.font = '8px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = rgba(.4);
-  [[0,'0°'],[90,'90°'],[180,'180°'],[270,'270°']].forEach(([degrees,label]) => {
-    const a = degrees * Math.PI / 180;
-    ctx.fillText(label,cx + Math.sin(a) * (radius * 1.14 + 18),cy - Math.cos(a) * (radius * 1.14 + 18));
+  ctx.font = '8px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = rgba(0.4);
+  [
+    [0, '0°'],
+    [90, '90°'],
+    [180, '180°'],
+    [270, '270°'],
+  ].forEach(([degrees, label]) => {
+    const a = (degrees * Math.PI) / 180;
+    ctx.fillText(label, cx + Math.sin(a) * (radius * 1.14 + 18), cy - Math.cos(a) * (radius * 1.14 + 18));
   });
   // Synaptic paths; brightness depends on presynaptic simulated activity.
   for (const edge of displayEdges) {
-    const p = positions[edge.source], q = positions[edge.target];
+    const p = positions[edge.source],
+      q = positions[edge.target];
     const activity = circuit.rates[edge.source];
-    ctx.beginPath(); ctx.moveTo(p.x, p.y);
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
     // Pull connections through the ring, keeping the middle legible.
-    ctx.quadraticCurveTo((p.x + q.x) / 2 * .65 + cx * .35, (p.y + q.y) / 2 * .65 + cy * .35, q.x, q.y);
-    ctx.strokeStyle = edge.weight < 0 ? `rgba(207,161,115,${.012 + activity * .032})` : rgba(.012 + activity * .055);
-    ctx.lineWidth = .65; ctx.stroke();
+    ctx.quadraticCurveTo(((p.x + q.x) / 2) * 0.65 + cx * 0.35, ((p.y + q.y) / 2) * 0.65 + cy * 0.35, q.x, q.y);
+    ctx.strokeStyle =
+      edge.weight < 0 ? `rgba(207,161,115,${0.012 + activity * 0.032})` : rgba(0.012 + activity * 0.055);
+    ctx.lineWidth = 0.65;
+    ctx.stroke();
   }
   // Dark central aperture provides a readable instrument face.
-  const aperture = ctx.createRadialGradient(cx,cy,radius*.35,cx,cy,radius*.61);
-  aperture.addColorStop(0,warm ? '#201e17' : '#1c2218'); aperture.addColorStop(.8,warm ? 'rgba(32,30,23,.95)' : 'rgba(28,34,24,.95)'); aperture.addColorStop(1,'rgba(25,30,20,0)');
-  ctx.fillStyle=aperture;ctx.beginPath();ctx.arc(cx,cy,radius*.61,0,TAU);ctx.fill();
+  const aperture = ctx.createRadialGradient(cx, cy, radius * 0.35, cx, cy, radius * 0.61);
+  aperture.addColorStop(0, warm ? '#201e17' : '#1c2218');
+  aperture.addColorStop(0.8, warm ? 'rgba(32,30,23,.95)' : 'rgba(28,34,24,.95)');
+  aperture.addColorStop(1, 'rgba(25,30,20,0)');
+  ctx.fillStyle = aperture;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius * 0.61, 0, TAU);
+  ctx.fill();
   // Individual neurons, never a painted or scripted bump.
   for (let i = 0; i < circuit.n; i++) {
-    const p = positions[i], rate = circuit.rates[i], type = circuit.neurons[i].type;
-    const rgb = type === 'Delta7' ? [216,169,130] : type === 'EPG' ? color : [142,166,112];
+    const p = positions[i],
+      rate = circuit.rates[i],
+      type = circuit.neurons[i].type;
+    const rgb = type === 'Delta7' ? [216, 169, 130] : type === 'EPG' ? color : [142, 166, 112];
     const size = type === 'EPG' ? 3.3 : type === 'Delta7' ? 2 : 2.35;
-    if (rate > .08) {
-      const glow = ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,size*6);
-      glow.addColorStop(0,`rgba(${rgb},${rate*.38})`); glow.addColorStop(1,`rgba(${rgb},0)`);
-      ctx.fillStyle=glow;ctx.beginPath();ctx.arc(p.x,p.y,size*6,0,TAU);ctx.fill();
+    if (rate > 0.08) {
+      const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, size * 6);
+      glow.addColorStop(0, `rgba(${rgb},${rate * 0.38})`);
+      glow.addColorStop(1, `rgba(${rgb},0)`);
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, size * 6, 0, TAU);
+      ctx.fill();
     }
-    ctx.beginPath();ctx.arc(p.x,p.y,size + rate*.75,0,TAU);
-    ctx.fillStyle=`rgba(${rgb},${.16+rate*.84})`;ctx.fill();
-    if (rate > .7) {ctx.beginPath();ctx.arc(p.x,p.y,1.2,0,TAU);ctx.fillStyle=`rgba(244,255,222,${rate*.8})`;ctx.fill();}
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, size + rate * 0.75, 0, TAU);
+    ctx.fillStyle = `rgba(${rgb},${0.16 + rate * 0.84})`;
+    ctx.fill();
+    if (rate > 0.7) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 1.2, 0, TAU);
+      ctx.fillStyle = `rgba(244,255,222,${rate * 0.8})`;
+      ctx.fill();
+    }
   }
   // The readout pointer fades naturally as heading coherence is lost.
-  const a = readout.angle - Math.PI / 2, r = radius * 1.07;
-  ctx.save();ctx.translate(cx+Math.cos(a)*r,cy+Math.sin(a)*r);ctx.rotate(a);
-  ctx.beginPath();ctx.moveTo(-4,-3);ctx.lineTo(3,0);ctx.lineTo(-4,3);ctx.closePath();
-  ctx.fillStyle=rgba(readout.coherence*.8);ctx.fill();ctx.restore();
+  const a = readout.angle - Math.PI / 2,
+    r = radius * 1.07;
+  ctx.save();
+  ctx.translate(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+  ctx.rotate(a);
+  ctx.beginPath();
+  ctx.moveTo(-4, -3);
+  ctx.lineTo(3, 0);
+  ctx.lineTo(-4, 3);
+  ctx.closePath();
+  ctx.fillStyle = rgba(readout.coherence * 0.8);
+  ctx.fill();
+  ctx.restore();
 }
 
 function updateHUD() {
-  const r = circuit.readout(), coherent = r.coherence > .25 && r.peak > .1;
-  ui.heading.innerHTML = coherent ? `${Math.round(r.angle*180/Math.PI)%360}<small>°</small>` : '—<small>°</small>';
-  ui['heading-note'].textContent = coherent ? (circuit.velocity ? 'Following the turn' : 'Holding a heading') : 'No coherent heading';
-  ui.coherence.textContent = `${Math.round(r.coherence*100)}%`;
-  ui['coherence-bar'].style.width = `${r.coherence*100}%`;
-  ui.fly.style.transform = `rotate(${Math.sin(circuit.cueAngle)*8+circuit.velocity*.24}deg)`;
+  const r = circuit.readout(),
+    coherent = r.coherence > 0.25 && r.peak > 0.1;
+  ui.heading.innerHTML = coherent
+    ? `${Math.round((r.angle * 180) / Math.PI) % 360}<small>°</small>`
+    : '—<small>°</small>';
+  ui['heading-note'].textContent = coherent
+    ? circuit.velocity
+      ? 'Following the turn'
+      : 'Holding a heading'
+    : 'No coherent heading';
+  ui.coherence.textContent = `${Math.round(r.coherence * 100)}%`;
+  ui['coherence-bar'].style.width = `${r.coherence * 100}%`;
+  ui.fly.style.transform = `rotate(${Math.sin(circuit.cueAngle) * 8 + circuit.velocity * 0.24}deg)`;
 }
 
 function frame(now) {
-  if (!last) last=now;
-  const dt = Math.min((now-last)/1000,.05);last=now;
+  if (!last) last = now;
+  const dt = Math.min((now - last) / 1000, 0.05);
+  last = now;
   if (circuit && !paused && !document.hidden) {
     accumulator += dt;
-    while (accumulator >= STEP) { circuit.step(STEP); accumulator-=STEP; }
+    while (accumulator >= STEP) {
+      circuit.step(STEP);
+      accumulator -= STEP;
+    }
   }
-  draw();hudClock+=dt;
-  if(circuit && hudClock>.1){updateHUD();hudClock=0;}
+  draw();
+  hudClock += dt;
+  if (circuit && hudClock > 0.1) {
+    updateHUD();
+    hudClock = 0;
+  }
   requestAnimationFrame(frame);
 }
 
 function setPaused(value) {
-  paused=value;
-  ui.pause.innerHTML=paused?'▶ <span>Resume</span>':'Ⅱ <span>Pause</span>';
-  ui.pause.setAttribute('aria-label',paused?'Resume simulation':'Pause simulation');
-  ui['run-status'].textContent=paused?'SIMULATION PAUSED':'SIMULATION LIVE';
-  $('live-dot').style.opacity=paused?'.3':'1';
+  paused = value;
+  ui.pause.innerHTML = paused ? '▶ <span>Resume</span>' : 'Ⅱ <span>Pause</span>';
+  ui.pause.setAttribute('aria-label', paused ? 'Resume simulation' : 'Pause simulation');
+  ui['run-status'].textContent = paused ? 'SIMULATION PAUSED' : 'SIMULATION LIVE';
+  $('live-dot').style.opacity = paused ? '.3' : '1';
 }
 function turn(value) {
   if (!circuit) return;
-  if (circuit.velocity === 0 && value !== 0) circuit.cueAngle=circuit.readout().angle;
-  circuit.velocity=value;ui.turn.value=value;
-  ui.velocity.textContent=`${value<0?'−':value>0?'+':''}${Math.abs(value)}° / s`;
-  ui.turn.setAttribute('aria-valuetext',value===0?'Still':`${Math.abs(value)} degrees per second ${value<0?'left':'right'}`);
+  if (circuit.velocity === 0 && value !== 0) circuit.cueAngle = circuit.readout().angle;
+  circuit.velocity = value;
+  ui.turn.value = value;
+  ui.velocity.textContent = `${value < 0 ? '−' : value > 0 ? '+' : ''}${Math.abs(value)}° / s`;
+  ui.turn.setAttribute(
+    'aria-valuetext',
+    value === 0 ? 'Still' : `${Math.abs(value)} degrees per second ${value < 0 ? 'left' : 'right'}`,
+  );
 }
 function mode(value) {
-  circuit.setMode(value);selectEdges();
+  circuit.setMode(value);
+  selectEdges();
   if (scene) scene.setEdges(circuit.edges);
-  const shuffled=value==='shuffled';
-  document.body.classList.toggle('shuffled-mode',shuffled);
-  ui.real.setAttribute('aria-pressed',String(!shuffled));ui.shuffled.setAttribute('aria-pressed',String(shuffled));
-  ui['mode-label'].textContent=shuffled?'PERMUTED DESTINATIONS':'MEASURED WIRING';
-  ui['mode-description'].textContent=shuffled?'The same connections, sent to random destinations. Watch the patch lose its shape.':'The measured connections let activity gather into a persistent patch.';
-  ui.reshuffle.hidden=!shuffled;
+  const shuffled = value === 'shuffled';
+  document.body.classList.toggle('shuffled-mode', shuffled);
+  ui.real.setAttribute('aria-pressed', String(!shuffled));
+  ui.shuffled.setAttribute('aria-pressed', String(shuffled));
+  ui['mode-label'].textContent = shuffled ? 'PERMUTED DESTINATIONS' : 'MEASURED WIRING';
+  ui['mode-description'].textContent = shuffled
+    ? 'The same connections, sent to random destinations. Watch the patch lose its shape.'
+    : 'The measured connections let activity gather into a persistent patch.';
+  ui.reshuffle.hidden = !shuffled;
 }
 
 function showInspector(index) {
-  if(index<0){ui['neuron-inspector'].hidden=true;return;}
-  const n=circuit.neurons[index];ui['neuron-inspector'].innerHTML=`<strong>${n.type}</strong> <span>${n.nt} · ${Math.round(circuit.rates[index]*100)}% active · ${n.id}</span>`;ui['neuron-inspector'].hidden=false;
+  if (index < 0) {
+    ui['neuron-inspector'].hidden = true;
+    return;
+  }
+  const n = circuit.neurons[index];
+  ui['neuron-inspector'].innerHTML =
+    `<strong>${n.type}</strong> <span>${n.nt} · ${Math.round(circuit.rates[index] * 100)}% active · ${n.id}</span>`;
+  ui['neuron-inspector'].hidden = false;
 }
 
 async function loadAnatomy() {
-  if(scene.anatomy||anatomyLoading)return;
-  anatomyLoading=true;ui['anatomy-status'].hidden=false;ui['anatomy-status'].textContent='Fetching the published v783 skeletons…';
+  if (scene.anatomy || anatomyLoading) return;
+  anatomyLoading = true;
+  ui['anatomy-status'].hidden = false;
+  ui['anatomy-status'].textContent = 'Loading the v783 skeletons…';
   try {
-    const buffers=await Promise.all(circuit.neurons.map(async n=>{const response=await fetch(`https://flyem.mrc-lmb.cam.ac.uk/flyconnectome/flywire_skeletons_783/${n.id}`);if(!response.ok)throw new Error(`FlyWire returned ${response.status}.`);return response.arrayBuffer();}));
-    const anatomy=anatomyFromSkeletonBuffers(circuit.neurons,buffers);scene.setAnatomy(anatomy);ui['anatomy-status'].hidden=true;
-  } catch(error) {
-    ui['anatomy-status'].innerHTML=`The published skeleton service could not be reached. <button id="retry-anatomy">Try again</button>`;$('retry-anatomy').addEventListener('click',loadAnatomy);
-  } finally { anatomyLoading=false; }
+    const responses = await Promise.all([fetch('data/anatomy.json'), fetch('data/anatomy.bin')]);
+    if (responses.some((r) => !r.ok)) throw new Error('Anatomy files are missing.');
+    const [manifest, buffer] = await Promise.all([responses[0].json(), responses[1].arrayBuffer()]);
+    if (crypto.subtle) {
+      if ((await sha256(buffer)) !== manifest.sha256) throw new Error('Anatomy integrity check failed.');
+    }
+    scene.setAnatomy(decodeAnatomy(buffer, manifest, circuit.neurons));
+    ui['anatomy-status'].hidden = true;
+  } catch (error) {
+    console.error(error);
+    ui['anatomy-status'].innerHTML = `The anatomy could not be loaded. <button id="retry-anatomy">Try again</button>`;
+    $('retry-anatomy').addEventListener('click', loadAnatomy);
+  } finally {
+    anatomyLoading = false;
+  }
 }
 
 function setView(next) {
-  if(next!=='flat'&&!scene)return;
-  view=next;ui.visualization.setAttribute('data-view',next);
-  $('visualization').dataset.view=next;
-  ui['view-ring'].setAttribute('aria-pressed',String(next==='ring'));ui['view-anatomy'].setAttribute('aria-pressed',String(next==='anatomy'));ui['view-flat'].setAttribute('aria-pressed',String(next==='flat'));
-  canvas.hidden=next!=='flat';$('scene3d').hidden=next==='flat';ui['anatomy-filter'].hidden=next!=='anatomy';ui['orbit-tools'].hidden=next==='flat';ui['orbit-hint'].hidden=next==='flat';
-  ui['view-caption'].textContent=next==='anatomy'?'PUBLISHED SKELETONS · v783':next==='flat'?'2D COMPASS · 147 NEURONS':'SCHEMATIC 3D · 147 NEURONS';
-  if(scene)scene.setView(next==='flat'?'ring':next);if(next==='anatomy')loadAnatomy();
+  if (next !== 'flat' && !scene) return;
+  view = next;
+  ui.visualization.dataset.view = next;
+  ui['view-ring'].setAttribute('aria-pressed', String(next === 'ring'));
+  ui['view-anatomy'].setAttribute('aria-pressed', String(next === 'anatomy'));
+  ui['view-flat'].setAttribute('aria-pressed', String(next === 'flat'));
+  canvas.hidden = next !== 'flat';
+  $('scene3d').hidden = next === 'flat';
+  ui['anatomy-filter'].hidden = next !== 'anatomy';
+  ui['orbit-tools'].hidden = next === 'flat';
+  ui['orbit-hint'].hidden = next === 'flat';
+  ui['view-caption'].textContent =
+    next === 'anatomy'
+      ? 'PUBLISHED SKELETONS · v783'
+      : next === 'flat'
+        ? `2D COMPASS · ${circuit.n} NEURONS`
+        : `SCHEMATIC 3D · ${circuit.n} NEURONS`;
+  if (scene) scene.setView(next === 'flat' ? 'ring' : next);
+  if (next === 'anatomy') loadAnatomy();
   resize();
 }
 
 async function init() {
-  let dataReady=false;
+  let dataReady = false;
   try {
-    const responses=await Promise.all([fetch('data/neurons.json'),fetch('data/connections.bin')]);
-    if(responses.some(r=>!r.ok))throw new Error('Could not load the connectome. Check that both data files are deployed.');
-    const [meta,buffer]=await Promise.all([responses[0].json(),responses[1].arrayBuffer()]);
-    metadata=meta;
-    if(crypto.subtle){
-      const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',buffer)),x=>x.toString(16).padStart(2,'0')).join('');
-      if(hash!==meta.matrix.sha256)throw new Error('Data integrity check failed. Re-export both connectome files.');
+    const responses = await Promise.all([fetch('data/neurons.json'), fetch('data/connections.bin')]);
+    if (responses.some((r) => !r.ok))
+      throw new Error('Could not load the connectome. Check that both data files are deployed.');
+    const [meta, buffer] = await Promise.all([responses[0].json(), responses[1].arrayBuffer()]);
+    metadata = meta;
+    if (crypto.subtle) {
+      if ((await sha256(buffer)) !== meta.matrix.sha256)
+        throw new Error('Data integrity check failed. Re-export both connectome files.');
     }
-    circuit=new Circuit(meta,decodeMatrix(buffer,meta));
-    dataReady=true;
+    circuit = new Circuit(meta, decodeMatrix(buffer, meta));
+    dataReady = true;
     try {
-      scene=new Scene3D($('scene3d'),circuit.neurons,showInspector,restored=>{if(!restored)ui['run-status'].textContent='3D CONTEXT LOST · SWITCH TO 2D';});
+      scene = new Scene3D($('scene3d'), circuit.neurons, showInspector, (restored) => {
+        if (!restored) ui['run-status'].textContent = '3D CONTEXT LOST · SWITCH TO 2D';
+      });
       scene.setEdges(circuit.edges);
       resize();
-    } catch(error) {
+    } catch (error) {
       console.warn(error);
-      scene=null;
-      ui['view-ring'].disabled=true;ui['view-anatomy'].disabled=true;ui['view-flat'].disabled=false;
-      ui['view-ring'].setAttribute('aria-label','3D unavailable in this browser');
+      scene = null;
+      ui['view-ring'].disabled = true;
+      ui['view-anatomy'].disabled = true;
+      ui['view-flat'].disabled = false;
+      ui['view-ring'].setAttribute('aria-label', '3D unavailable in this browser');
     }
     // Let the initial condition settle before showing the instrument.
-    for(let i=0;i<360;i++)circuit.step();
-    layout();ui.loading.hidden=true;
-    for(const id of ['turn','stop','real','shuffled','pause','reset','view-flat'])ui[id].disabled=false;
-    for(const id of ['view-ring','view-anatomy'])ui[id].disabled=!scene;
-    ui['data-stats'].textContent=`${meta.neuronCount} NEURONS · ${meta.edgeCount.toLocaleString()} CONNECTIONS · v${meta.version}`;
-    ui.turn.addEventListener('input',()=>turn(Number(ui.turn.value)));
-    ui.stop.addEventListener('click',()=>turn(0));
-    ui.real.addEventListener('click',()=>mode('real'));ui.shuffled.addEventListener('click',()=>mode('shuffled'));
-    ui.pause.addEventListener('click',()=>setPaused(!paused));
-    ui.reset.addEventListener('click',()=>{turn(0);circuit.reset();updateHUD();});
-    ui.reshuffle.addEventListener('click',()=>{circuit.reshuffle(++seed);selectEdges();});
-    $('view-ring').addEventListener('click',()=>setView('ring'));$('view-flat').addEventListener('click',()=>setView('flat'));$('view-anatomy').addEventListener('click',()=>setView('anatomy'));
-    $('zoom-in').addEventListener('click',()=>scene.zoom(.88));$('zoom-out').addEventListener('click',()=>scene.zoom(1.14));$('camera-reset').addEventListener('click',()=>scene.resetCamera());
-    $('cell-filter').addEventListener('change',event=>scene.setFilter(event.target.value));
-    document.addEventListener('keydown',event=>{if(event.key==='Escape')turn(0);});
-    document.addEventListener('visibilitychange',()=>{last=0;accumulator=0;});
-    setView(scene?'ring':'flat');setPaused(reducedMotion);updateHUD();
-  } catch(error) {
+    for (let i = 0; i < 360; i++) circuit.step();
+    layout();
+    ui.loading.hidden = true;
+    for (const id of ['turn', 'stop', 'real', 'shuffled', 'pause', 'reset', 'view-flat']) ui[id].disabled = false;
+    for (const id of ['view-ring', 'view-anatomy']) ui[id].disabled = !scene;
+    ui['data-stats'].textContent =
+      `${meta.neuronCount} NEURONS · ${meta.edgeCount.toLocaleString()} CONNECTIONS · v${meta.version}`;
+    ui.turn.addEventListener('input', () => turn(Number(ui.turn.value)));
+    ui.stop.addEventListener('click', () => turn(0));
+    ui.real.addEventListener('click', () => mode('real'));
+    ui.shuffled.addEventListener('click', () => mode('shuffled'));
+    ui.pause.addEventListener('click', () => setPaused(!paused));
+    ui.reset.addEventListener('click', () => {
+      turn(0);
+      circuit.reset();
+      updateHUD();
+    });
+    ui.reshuffle.addEventListener('click', () => {
+      circuit.reshuffle(++seed);
+      selectEdges();
+      if (scene) scene.setEdges(circuit.edges);
+    });
+    $('view-ring').addEventListener('click', () => setView('ring'));
+    $('view-flat').addEventListener('click', () => setView('flat'));
+    $('view-anatomy').addEventListener('click', () => setView('anatomy'));
+    $('zoom-in').addEventListener('click', () => scene.zoom(0.88));
+    $('zoom-out').addEventListener('click', () => scene.zoom(1.14));
+    $('camera-reset').addEventListener('click', () => scene.resetCamera());
+    $('cell-filter').addEventListener('change', (event) => scene.setFilter(event.target.value));
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') turn(0);
+    });
+    document.addEventListener('visibilitychange', () => {
+      last = 0;
+      accumulator = 0;
+    });
+    setView(scene ? 'ring' : 'flat');
+    setPaused(reducedMotion);
+    updateHUD();
+  } catch (error) {
     console.error(error);
-    ui.loading.hidden=false;
-    ui.loading.textContent=`${error.message} Reload this page to retry.`;
-    ui.loading.setAttribute('role','alert');ui['run-status'].textContent=dataReady?'INITIALIZATION FAILED':'DATA UNAVAILABLE';
+    ui.loading.hidden = false;
+    ui.loading.textContent = `${error.message} Reload this page to retry.`;
+    ui.loading.setAttribute('role', 'alert');
+    ui['run-status'].textContent = dataReady ? 'INITIALIZATION FAILED' : 'DATA UNAVAILABLE';
   }
 }
 new ResizeObserver(resize).observe(ui.visualization);
-resize();requestAnimationFrame(frame);init();
+resize();
+requestAnimationFrame(frame);
+init();
