@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101210">
+  <meta name="description" content="Step inside a fly’s inner compass. Explore measured brain connections in an interactive 3D ring and real neuron anatomy.">
+  <meta property="og:title" content="Inner Compass — a tiny brain, a sense of direction">
+  <meta property="og:description" content="147 neurons. 2,529 connections. Explore the architecture of direction in 3D.">
+  <meta property="og:type" content="website">
+  <title>Inner Compass — a FlyWire experiment</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="landing.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="./" aria-label="Inner Compass home"><img src="icon.svg" width="32" height="32" alt=""> INNER COMPASS</a>
+    <nav aria-label="Main navigation"><a href="#how-it-works">How it works</a><a href="#model-notes">The science</a><a class="nav-cta" href="#explore">Explore the circuit <span>↗</span></a></nav>
+  </header>
+  <main>
+    <section class="intro landing-hero" aria-labelledby="title">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="tiny-dot"></span> SMALL BRAINS. EXTRAORDINARY STRUCTURE.</p>
+        <h1 id="title">A tiny brain.<br>A sense of<br><em>direction.</em></h1>
+        <p class="lede">Somewhere inside a fly’s brain, a small circuit remembers which way it’s facing. Now you can step inside it.</p>
+        <div class="hero-actions"><a class="primary-button" href="#explore">Explore the brain <span>↗</span></a><a class="quiet-link" href="#how-it-works">What am I looking at? <span>↓</span></a></div>
+        <p class="hero-footnote">REAL FLYWIRE DATA <span>·</span> INTERACTIVE 3D <span>·</span> NO INSTALL NEEDED</p>
+      </div>
+      <figure class="hero-figure"><img src="circuit-preview.svg" width="620" height="550" alt="A schematic compass circuit with layered rings of neurons and a bright patch of activity."><figcaption><span><i class="tiny-dot"></i> A LITTLE STRUCTURE. A SENSE OF SELF.</span><span>FIG. 01 / COMPASS CIRCUIT</span></figcaption></figure>
+    </section>
+    <section class="data-strip" aria-label="The circuit in numbers"><div><strong>147</strong><span>SIMULATED NEURONS</span></div><div><strong>2,529</strong><span>MEASURED CONNECTIONS</span></div><div><strong>1</strong><span>ACTUAL FLY BRAIN</span></div><p>A small window into<br>the architecture of navigation.</p></section>
+    <section class="section-heading" id="explore" aria-labelledby="explore-title"><div><p class="eyebrow">THE LIVE EXPERIMENT</p><h2 id="explore-title">Change your perspective.</h2></div><p>Orbit the circuit. Turn the fly.<br>Discover what happens when the wiring changes.</p></section>
+    <section class="experiment" aria-label="Interactive heading circuit">
+      <div class="view-bar"><div class="view-switch" role="group" aria-label="Circuit visualization"><button id="view-ring" aria-pressed="true" disabled>3D ring</button><button id="view-anatomy" aria-pressed="false" disabled>Real anatomy</button><button id="view-flat" aria-pressed="false" disabled>2D compass</button></div><span class="view-bar-note">ONE CIRCUIT. THREE WAYS TO SEE IT.</span></div>
+      <div class="lab-bar">
+        <div><span class="tiny-dot live-dot" id="live-dot"></span><span id="run-status" role="status">LOADING CONNECTOME</span></div>
+        <span>ELLIPSOID BODY <span class="muted">↔</span> PROTOCEREBRAL BRIDGE</span>
+        <button class="text-button" id="pause" disabled aria-label="Pause simulation">Ⅱ <span>Pause</span></button>
+      </div>
+      <div class="lab-body">
+        <div class="visualization is-3d" id="visualization" data-view="ring">
+          <div class="figure-label"><span id="view-caption">SCHEMATIC 3D · 147 NEURONS</span><span id="mode-label">MEASURED WIRING</span></div>
+          <canvas id="circuit" hidden role="img" aria-label="Compass neurons on concentric rings; brighter neurons have higher simulated activity."></canvas>
+          <canvas id="scene3d" tabindex="0" aria-label="Interactive 3D circuit. Drag or use arrow keys to orbit, pinch or use plus and minus to zoom. Home resets the camera." aria-describedby="orbit-hint"></canvas>
+          <div id="anatomy-filter" class="anatomy-filter" hidden><label for="cell-filter">Show neurons</label><select id="cell-filter"><option value="all">All cell types</option><option value="EPG">EPG · compass</option><option value="PEG">PEG · relay</option><option value="PENa">PENa · relay</option><option value="PENb">PENb · relay</option><option value="Delta7">Delta7 · inhibition</option></select></div>
+          <p id="anatomy-status" class="anatomy-status" role="status" hidden></p>
+          <div class="orbit-tools" id="orbit-tools"><button id="zoom-in" aria-label="Zoom in">+</button><button id="zoom-out" aria-label="Zoom out">−</button><button id="camera-reset" aria-label="Reset 3D camera">⟲</button></div>
+          <p class="orbit-hint" id="orbit-hint">Drag to orbit <span>·</span> Pinch to zoom <span>·</span> Tap a neuron</p>
+          <div class="neuron-inspector" id="neuron-inspector" role="status" hidden></div>
+          <div class="canvas-center" aria-hidden="true"><span class="center-label">DECODED HEADING</span><span id="heading">—<small>°</small></span><span class="center-foot" id="heading-note">A sense of direction</span></div>
+          <div class="loading-message" id="loading">Reading a tiny piece of a fly’s brain<span class="loading-dots">…</span></div>
+          <div class="legend"><span><i class="legend-dot epg"></i>Compass</span><span><i class="legend-dot relay"></i>Relay</span><span><i class="legend-dot inhibition"></i>Inhibition</span><span class="activity-key">DIM <i></i> ACTIVE</span></div>
+        </div>
+        <aside class="controls">
+          <div class="control-section">
+            <p class="step-label">01 <span>MOVE THE FLY</span></p>
+            <h2>Take a turn.</h2>
+            <p>Move the slider to turn. Bring it back to the center to hold still.</p>
+            <div class="turn-display"><span>↶</span><svg viewBox="0 0 70 70" aria-hidden="true" id="fly"><g fill="none" stroke="currentColor" stroke-width="1.3"><ellipse cx="25" cy="34" rx="8" ry="15" transform="rotate(-25 25 34)"/><ellipse cx="45" cy="34" rx="8" ry="15" transform="rotate(25 45 34)"/><path d="M35 17v39M30 23l-6-7m16 7 6-7M29 36l-10 6m22-6 10 6M31 45l-8 9m16-9 8 9"/><ellipse cx="35" cy="36" rx="5" ry="14" fill="currentColor"/><circle cx="35" cy="19" r="5" fill="currentColor"/></g></svg><span>↷</span></div>
+            <label class="sr-only" for="turn">Turn velocity, left or right</label>
+            <input type="range" id="turn" min="-90" max="90" value="0" step="1" disabled>
+            <div class="range-labels"><span>LEFT</span><output id="velocity" for="turn">0° / s</output><span>RIGHT</span></div>
+            <button id="stop" class="text-button center-button" disabled>Center slider <span>↵</span></button>
+          </div>
+          <div class="control-section wiring-section">
+            <p class="step-label">02 <span>CHANGE THE CONNECTIONS</span></p>
+            <h2>Same neurons. Different story.</h2>
+            <div class="segmented" role="group" aria-label="Wiring mode">
+              <button id="real" aria-pressed="true" disabled>Real wiring</button>
+              <button id="shuffled" aria-pressed="false" disabled>Shuffled wiring</button>
+            </div>
+            <p id="mode-description">The measured connections let activity gather into a persistent patch.</p>
+            <div class="coherence"><div><span>PATCH COHERENCE</span><output id="coherence">—</output></div><div class="meter"><i id="coherence-bar"></i></div></div>
+            <div class="secondary-actions"><button id="reset" class="text-button" disabled>↺ Reset activity</button><button id="reshuffle" class="text-button" hidden>Shuffle again ↗</button></div>
+          </div>
+        </aside>
+      </div>
+      <div class="lab-footer"><p><span class="tiny-dot"></span> The wiring is measured from an actual fly brain.</p><span id="data-stats">FLYWIRE FAFB · v783</span></div>
+    </section>
+    <section class="how-it-works" id="how-it-works" aria-labelledby="how-title"><div class="section-heading"><div><p class="eyebrow">A FIELD GUIDE TO YOUR FLY</p><h2 id="how-title">Follow the little light.</h2></div><p>You don’t need to be a neuroscientist.<br>Just bring a little curiosity.</p></div><div class="guide-grid">
+      <article><span class="guide-index">01 / OBSERVE</span><div class="guide-symbol" aria-hidden="true">◉</div><h3>Find the bright patch.</h3><p>Each glow is a neuron’s simulated activity. Together, a patch of active compass neurons represents a direction.</p></article>
+      <article><span class="guide-index">02 / EXPLORE</span><div class="guide-symbol" aria-hidden="true">↻</div><h3>See the same circuit in 3D.</h3><p>Orbit a schematic ring, or explore reconstructed neuron branches. Both views follow the exact same live simulation.</p></article>
+      <article><span class="guide-index">03 / EXPERIMENT</span><div class="guide-symbol" aria-hidden="true">⤨</div><h3>Give the wiring a shuffle.</h3><p>Turn, then center the slider. Switch the connections to random destinations and watch the patch lose its shape.</p></article>
+    </div></section>
+    <section class="understory" aria-label="About this experiment">
+      <p><span class="note-number">↳</span> A little structure makes a world of difference.</p>
+      <details id="model-notes"><summary>Inside the experiment <span>+</span></summary><div class="notes-content">
+        <p>This is a simplified rate model on a measured FlyWire subgraph, not a validated reconstruction of a living fly. Every neuron updates from its connected inputs. The same dynamics and input are used in both modes.</p>
+        <p>Connection weights start as synapse counts, then receive population-specific normalization and gains. Acetylcholine is modeled as excitatory; GABA and glutamate as inhibitory. Glutamate’s effect depends on receptors, so its sign here is an assumption. Four cells with unresolved transmitter predictions are excluded.</p>
+        <p>Turning supplies a moving, modeled heading cue; this demo does not claim to reproduce biological angular-velocity integration. This cue can organize either mode, so center the slider to compare persistence. At rest the cue switches off, and real wiring can drift toward preferred headings. Ring positions are inferred from connectivity, not measured anatomical coordinates. Zero degrees is arbitrary.</p>
+        <p>Shuffling permutes each neuron’s outgoing destinations, including empty slots. This preserves the exact edge count, outgoing weights, and transmitter sign, while breaking spatial organization. Patch coherence is the circular concentration of EPG activity; it is not biological accuracy.</p>
+        <p>The 3D ring is a schematic. The anatomy view uses simplified skeletons of these neurons from the published FlyWire v783 reconstruction. Skeleton branches show cell shape, not individual synaptic connections. Activity is assigned per neuron, not simulated separately along each branch. Anatomy stays fixed when wiring is shuffled.</p>
+        <p><a href="https://doi.org/10.1038/s41586-024-07558-y" target="_blank" rel="noopener">FlyWire connectome ↗</a> · <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC8356802/" target="_blank" rel="noopener">The biological ring attractor ↗</a> · <a href="https://zenodo.org/records/10877326" target="_blank" rel="noopener">Anatomy source ↗</a> · <a href="data/neurons.json" target="_blank">Circuit provenance ↗</a> · <a href="data/anatomy.json" target="_blank">Anatomy provenance ↗</a></p>
+      </div></details>
+    </section>
+  </main>
+  <footer class="page-footer"><span>A CONNECTOME YOU CAN PLAY WITH.</span><span>ONE FLY. A WORLD OF CONNECTIONS.</span></footer>
+  <noscript><p class="noscript">Enable JavaScript to run this local simulation.</p></noscript>
+</body>
+</html>
