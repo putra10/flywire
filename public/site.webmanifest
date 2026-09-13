@@ -1,0 +1,1 @@
+{"name":"Inner Compass","short_name":"Inner Compass","description":"Explore a fly's inner compass in measured FlyWire data.","start_url":"./","display":"standalone","background_color":"#101210","theme_color":"#101210","icons":[{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}

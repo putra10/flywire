@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 550" fill="none">
+  <defs><radialGradient id="g"><stop stop-color="#c4e884" stop-opacity=".55"/><stop offset="1" stop-color="#c4e884" stop-opacity="0"/></radialGradient><filter id="b"><feGaussianBlur stdDeviation="9"/></filter></defs>
+  <g stroke="#44543a" stroke-opacity=".38"><circle cx="320" cy="270" r="196"/><circle cx="320" cy="270" r="165"/><circle cx="320" cy="270" r="126"/><circle cx="320" cy="270" r="88"/></g>
+  <g stroke="#72895b" stroke-opacity=".22" stroke-width=".8"><path d="M320 74v392M124 270h392"/><path d="m181 131 278 278M459 131 181 409"/></g>
+  <circle cx="320" cy="270" r="77" fill="#172016" stroke="#425339"/>
+  <ellipse cx="320" cy="147" rx="65" ry="41" fill="url(#g)" filter="url(#b)"/>
+  <g fill="#c4e884"><circle cx="283" cy="122" r="4"/><circle cx="299" cy="111" r="4"/><circle cx="318" cy="108" r="5"/><circle cx="338" cy="112" r="4"/><circle cx="357" cy="123" r="4"/><circle cx="371" cy="137" r="3"/><circle cx="265" cy="141" r="3"/><circle cx="385" cy="152" r="3"/></g>
+  <g fill="#d8a982" fill-opacity=".7"><circle cx="219" cy="182" r="3"/><circle cx="202" cy="206" r="3"/><circle cx="416" cy="184" r="3"/><circle cx="437" cy="206" r="3"/><circle cx="191" cy="330" r="3"/><circle cx="448" cy="326" r="3"/></g>
+  <g stroke="#a4c87a" stroke-opacity=".2" stroke-width="1"><path d="M270 126 228 186 196 273M300 111 250 217 215 351M350 116l43 78 30 110M370 136l61 109 -5 109M248 185l70 47 112-50M224 304l96-63 125 62"/></g>
+  <path d="M320 54v-20" stroke="#c4e884" stroke-width="2"/><path d="m314 40 6-8 6 8" stroke="#c4e884" stroke-width="2"/>
+  <text x="320" y="285" text-anchor="middle" fill="#97a98a" font-family="monospace" font-size="8" letter-spacing="2">A FLY'S INNER COMPASS</text><text x="320" y="303" text-anchor="middle" fill="#64745b" font-family="monospace" font-size="7" letter-spacing="1.5">MEASURED CONNECTIONS / V783</text>
+</svg>

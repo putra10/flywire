@@ -1,0 +1,7 @@
+.cache
+.git
+.venv
+node_modules
+scripts
+tests
+__pycache__
