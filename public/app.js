@@ -1,9 +1,9 @@
 import { Circuit, decodeMatrix, STEP, TAU } from './model.mjs';
-import { Scene3D, anatomyFromSkeletonBuffers, decodeAnatomy } from './scene3d.mjs';
+import { Scene3D, anatomyFromSkeletonBuffers } from './scene3d.mjs';
 
 const $ = id => document.getElementById(id);
 const canvas = $('circuit'), ctx = canvas.getContext('2d');
-const ui = Object.fromEntries(['turn','velocity','stop','real','shuffled','pause','reset','reshuffle','loading','heading','heading-note','coherence','coherence-bar','run-status','mode-label','mode-description','view-caption','data-stats','fly','visualization','scene3d','anatomy-filter','anatomy-status','orbit-tools','orbit-hint','neuron-inspector'].map(id => [id, $(id)]));
+const ui = Object.fromEntries(['turn','velocity','stop','real','shuffled','pause','reset','reshuffle','loading','heading','heading-note','coherence','coherence-bar','run-status','mode-label','mode-description','view-caption','data-stats','fly','visualization','scene3d','view-ring','view-anatomy','view-flat','anatomy-filter','anatomy-status','orbit-tools','orbit-hint','neuron-inspector'].map(id => [id, $(id)]));
 let circuit, metadata, paused = false, last = 0, accumulator = 0, width = 0, height = 0, seed = 42;
 let positions = [], displayEdges = [], hudClock = 0, scene, view = 'ring', anatomyLoading = false;
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -163,16 +163,18 @@ async function loadAnatomy() {
 }
 
 function setView(next) {
+  if(next!=='flat'&&!scene)return;
   view=next;ui.visualization.setAttribute('data-view',next);
   $('visualization').dataset.view=next;
   ui['view-ring'].setAttribute('aria-pressed',String(next==='ring'));ui['view-anatomy'].setAttribute('aria-pressed',String(next==='anatomy'));ui['view-flat'].setAttribute('aria-pressed',String(next==='flat'));
   canvas.hidden=next!=='flat';$('scene3d').hidden=next==='flat';ui['anatomy-filter'].hidden=next!=='anatomy';ui['orbit-tools'].hidden=next==='flat';ui['orbit-hint'].hidden=next==='flat';
   ui['view-caption'].textContent=next==='anatomy'?'PUBLISHED SKELETONS · v783':next==='flat'?'2D COMPASS · 147 NEURONS':'SCHEMATIC 3D · 147 NEURONS';
   if(scene)scene.setView(next==='flat'?'ring':next);if(next==='anatomy')loadAnatomy();
-  if(next==='flat'){resize();}else{scene?.resize(width,height);}
+  resize();
 }
 
 async function init() {
+  let dataReady=false;
   try {
     const responses=await Promise.all([fetch('data/neurons.json'),fetch('data/connections.bin')]);
     if(responses.some(r=>!r.ok))throw new Error('Could not load the connectome. Check that both data files are deployed.');
@@ -183,6 +185,7 @@ async function init() {
       if(hash!==meta.matrix.sha256)throw new Error('Data integrity check failed. Re-export both connectome files.');
     }
     circuit=new Circuit(meta,decodeMatrix(buffer,meta));
+    dataReady=true;
     try {
       scene=new Scene3D($('scene3d'),circuit.neurons,showInspector,restored=>{if(!restored)ui['run-status'].textContent='3D CONTEXT LOST · SWITCH TO 2D';});
       scene.setEdges(circuit.edges);
@@ -196,7 +199,8 @@ async function init() {
     // Let the initial condition settle before showing the instrument.
     for(let i=0;i<360;i++)circuit.step();
     layout();ui.loading.hidden=true;
-    for(const id of ['turn','stop','real','shuffled','pause','reset','view-ring','view-anatomy','view-flat'])ui[id].disabled=false;
+    for(const id of ['turn','stop','real','shuffled','pause','reset','view-flat'])ui[id].disabled=false;
+    for(const id of ['view-ring','view-anatomy'])ui[id].disabled=!scene;
     ui['data-stats'].textContent=`${meta.neuronCount} NEURONS · ${meta.edgeCount.toLocaleString()} CONNECTIONS · v${meta.version}`;
     ui.turn.addEventListener('input',()=>turn(Number(ui.turn.value)));
     ui.stop.addEventListener('click',()=>turn(0));
@@ -212,9 +216,10 @@ async function init() {
     setView(scene?'ring':'flat');setPaused(reducedMotion);updateHUD();
   } catch(error) {
     console.error(error);
+    ui.loading.hidden=false;
     ui.loading.textContent=`${error.message} Reload this page to retry.`;
-    ui.loading.setAttribute('role','alert');ui['run-status'].textContent='DATA UNAVAILABLE';
+    ui.loading.setAttribute('role','alert');ui['run-status'].textContent=dataReady?'INITIALIZATION FAILED':'DATA UNAVAILABLE';
   }
 }
-new ResizeObserver(resize).observe(canvas);
+new ResizeObserver(resize).observe(ui.visualization);
 resize();requestAnimationFrame(frame);init();
